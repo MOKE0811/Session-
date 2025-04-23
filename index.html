@@ -4,6 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>予約カレンダー</title>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
   <style>
     body {
       font-family: sans-serif;
@@ -77,12 +79,6 @@
   <h2 class="month-title"></h2>
   <h1>学校用予約カレンダー</h1>
 
-  <div id="loginArea">
-    <h3>管理者ログイン</h3>
-    <label>パスワード：<input type="password" id="adminPass"></label>
-    <button onclick="loginAdmin()">ログイン</button>
-  </div>
-
   <table id="calendar">
     <thead>
       <tr>
@@ -106,7 +102,25 @@
     <ul id="reservationList"></ul>
   </div>
 
+  <div id="loginArea">
+    <h3>管理者ログイン</h3>
+    <label>パスワード：<input type="password" id="adminPass"></label>
+    <button onclick="loginAdmin()">ログイン</button>
+  </div>
+
   <script>
+    // Firebase 初期化
+    const firebaseConfig = {
+      apiKey: "YOUR_API_KEY",
+      authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+      projectId: "YOUR_PROJECT_ID",
+      storageBucket: "YOUR_PROJECT_ID.appspot.com",
+      messagingSenderId: "YOUR_SENDER_ID",
+      appId: "YOUR_APP_ID"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+
     const calendarBody = document.getElementById('calendarBody');
     const form = document.getElementById('bookingForm');
     const reservationList = document.getElementById('reservationList');
@@ -119,10 +133,10 @@
     const daysInMonth = new Date(year, month + 1, 0).getDate();
     monthTitle.textContent = `${year}年${month + 1}月`;
 
-    let reservations = JSON.parse(localStorage.getItem('reservations') || '{}');
     const selectedCells = new Set();
+    const reservations = {};
 
-    const ADMIN_PASSWORD = "admin123"; // 管理用パスワード（変更可）
+    const ADMIN_PASSWORD = "admin123";
 
     function loginAdmin() {
       const inputPass = document.getElementById("adminPass").value;
@@ -152,12 +166,15 @@
         const td = document.createElement('td');
         const key = `${dateStr}-${slot}`;
 
-        if (reservations[key]) {
-          td.className = 'reserved';
-          td.textContent = reservations[key].name;
-        } else {
-          td.className = 'available';
-        }
+        db.collection("reservations").doc(key).get().then(doc => {
+          if (doc.exists) {
+            td.className = 'reserved';
+            td.textContent = doc.data().name;
+            reservations[key] = doc.data();
+          } else {
+            td.className = 'available';
+          }
+        });
 
         td.dataset.date = dateStr;
         td.dataset.slot = slot;
@@ -166,11 +183,11 @@
           if (td.classList.contains('reserved')) {
             const res = reservations[key];
             if (res && prompt("予約キャンセル確認\nパスワードを入力してください：") === res.pass) {
+              db.collection("reservations").doc(key).delete();
               delete reservations[key];
               td.textContent = '';
               td.className = 'available';
               updateReservationList();
-              localStorage.setItem('reservations', JSON.stringify(reservations));
               alert('予約をキャンセルしました');
             } else {
               alert(`この時間帯は予約されています：${res.name}`);
@@ -185,7 +202,6 @@
             }
           }
         });
-
         row.appendChild(td);
       }
       calendarBody.appendChild(row);
@@ -200,7 +216,9 @@
         const date = cell.dataset.date;
         const slot = cell.dataset.slot;
         const key = `${date}-${slot}`;
-        reservations[key] = { name, pass };
+        const data = { name, pass };
+        db.collection("reservations").doc(key).set(data);
+        reservations[key] = data;
         cell.textContent = name;
         cell.className = 'reserved';
       });
@@ -209,7 +227,6 @@
       updateReservationList();
       form.reset();
       selectedCells.clear();
-      localStorage.setItem('reservations', JSON.stringify(reservations));
     });
 
     function updateReservationList() {
@@ -220,8 +237,6 @@
         reservationList.appendChild(li);
       }
     }
-
-    updateReservationList();
   </script>
 </body>
 </html>
