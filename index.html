@@ -1,143 +1,37 @@
-<!DOCTYPE html>
-<html lang="ja">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>予約カレンダー</title>
-  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
-  <style>
-    body {
-      font-family: sans-serif;
-      background: #f4f4f4;
-      margin: 0;
-      padding: 2rem;
-    }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      background: white;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-      overflow-x: auto;
-    }
-    th, td {
-      border: 1px solid #ccc;
-      padding: 0.5rem;
-      text-align: center;
-      min-width: 60px;
-    }
-    th {
-      background-color: #007bff;
-      color: white;
-      position: sticky;
-      top: 0;
-    }
-    td.reserved {
-      background-color: #ffcccc;
-      cursor: pointer;
-    }
-    td.available {
-      background-color: #e6ffe6;
-      cursor: pointer;
-    }
-    td.selected {
-      background-color: #66cc66 !important;
-    }
-    #formArea, #adminArea, #loginArea {
-      margin-top: 2rem;
-      padding: 1rem;
-      background: white;
-      border-radius: 10px;
-    }
-    label, input {
-      display: block;
-      margin: 0.5rem 0;
-    }
-    button {
-      padding: 0.5rem 1rem;
-      background: #007bff;
-      color: white;
-      border: none;
-      border-radius: 5px;
-      cursor: pointer;
-    }
-    h2.month-title {
-      text-align: center;
-      margin-bottom: 1rem;
-    }
-    ul {
-      list-style: none;
-      padding: 0;
-    }
-    li {
-      margin: 0.25rem 0;
-    }
-    #adminArea { display: none; }
-  </style>
-</head>
-<body>
-  <h2 class="month-title"></h2>
-  <h1>学校用予約カレンダー</h1>
-
-  <table id="calendar">
-    <thead>
-      <tr>
-        <th>時間帯</th>
-      </tr>
-    </thead>
-    <tbody id="calendarBody"></tbody>
-  </table>
-
-  <div id="formArea">
-    <h3>予約フォーム</h3>
-    <form id="bookingForm">
-      <label>名前：<input type="text" id="userName" required></label>
-      <label>パスワード（キャンセル用）：<input type="password" id="userPass" required></label>
-      <button type="submit">予約する</button>
-    </form>
-  </div>
-
-  <div id="adminArea">
-    <h3>予約一覧（管理者用）</h3>
-    <ul id="reservationList"></ul>
-  </div>
-
-  <div id="loginArea">
-    <h3>管理者ログイン</h3>
-    <label>パスワード：<input type="password" id="adminPass"></label>
-    <button onclick="loginAdmin()">ログイン</button>
-  </div>
-
-  <script>
-    // Firebase 初期化
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-app.js";
+    import { getFirestore, doc, getDoc, setDoc, deleteDoc, onSnapshot, collection } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-firestore.js";
+  
     const firebaseConfig = {
-      apiKey: "YOUR_API_KEY",
-      authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
-      projectId: "YOUR_PROJECT_ID",
-      storageBucket: "YOUR_PROJECT_ID.appspot.com",
-      messagingSenderId: "YOUR_SENDER_ID",
-      appId: "YOUR_APP_ID"
+      apiKey: "AIzaSyD9mh78jkMDpKo1i_fAvQ5TgnUUWny9Fyg",
+      authDomain: "session-booking-5ffce.firebaseapp.com",
+      projectId: "session-booking-5ffce",
+      storageBucket: "session-booking-5ffce.appspot.com",
+      messagingSenderId: "63181042788",
+      appId: "1:63181042788:web:af3c9cd064d7eac11c1b71",
+      measurementId: "G-X44HX92V7L"
     };
-    firebase.initializeApp(firebaseConfig);
-    const db = firebase.firestore();
-
+  
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+  
     const calendarBody = document.getElementById('calendarBody');
     const form = document.getElementById('bookingForm');
     const reservationList = document.getElementById('reservationList');
     const monthTitle = document.querySelector('.month-title');
-
+  
     const timeSlots = ['朝', '1限', '2限', 'お昼休み', '3限', '4限', '5限', '6限', '夜'];
     const today = new Date();
     const year = today.getFullYear();
     const month = today.getMonth();
     const daysInMonth = new Date(year, month + 1, 0).getDate();
     monthTitle.textContent = `${year}年${month + 1}月`;
-
+  
     const selectedCells = new Set();
     const reservations = {};
-
+  
     const ADMIN_PASSWORD = "admin123";
-
+  
     function loginAdmin() {
       const inputPass = document.getElementById("adminPass").value;
       if (inputPass === ADMIN_PASSWORD) {
@@ -147,43 +41,33 @@
         alert("パスワードが違います");
       }
     }
-
+  
     const headerRow = document.querySelector("thead tr");
     for (let d = 1; d <= daysInMonth; d++) {
       const th = document.createElement("th");
       th.textContent = `${d}日`;
       headerRow.appendChild(th);
     }
-
+  
     timeSlots.forEach(slot => {
       const row = document.createElement('tr');
       const timeCell = document.createElement('td');
       timeCell.textContent = slot;
       row.appendChild(timeCell);
-
+  
       for (let d = 1; d <= daysInMonth; d++) {
         const dateStr = `${month + 1}月${d}日`;
         const td = document.createElement('td');
         const key = `${dateStr}-${slot}`;
-
-        db.collection("reservations").doc(key).get().then(doc => {
-          if (doc.exists) {
-            td.className = 'reserved';
-            td.textContent = doc.data().name;
-            reservations[key] = doc.data();
-          } else {
-            td.className = 'available';
-          }
-        });
-
+  
         td.dataset.date = dateStr;
         td.dataset.slot = slot;
-
+  
         td.addEventListener('click', () => {
           if (td.classList.contains('reserved')) {
             const res = reservations[key];
             if (res && prompt("予約キャンセル確認\nパスワードを入力してください：") === res.pass) {
-              db.collection("reservations").doc(key).delete();
+              deleteDoc(doc(db, "reservations", key));
               delete reservations[key];
               td.textContent = '';
               td.className = 'available';
@@ -206,29 +90,46 @@
       }
       calendarBody.appendChild(row);
     });
-
+  
+    onSnapshot(collection(db, "reservations"), (snapshot) => {
+      snapshot.docChanges().forEach(change => {
+        const key = change.doc.id;
+        const data = change.doc.data();
+        reservations[key] = data;
+  
+        const [dateStr, slot] = key.split('-');
+        const td = [...document.querySelectorAll('td')].find(td => td.dataset.date === dateStr && td.dataset.slot === slot);
+        if (td) {
+          if (change.type === "removed") {
+            td.textContent = '';
+            td.className = 'available';
+          } else {
+            td.textContent = data.name;
+            td.className = 'reserved';
+          }
+        }
+        updateReservationList();
+      });
+    });
+  
     form.addEventListener('submit', (e) => {
       e.preventDefault();
       const name = document.getElementById('userName').value;
       const pass = document.getElementById('userPass').value;
-
+  
       selectedCells.forEach(cell => {
         const date = cell.dataset.date;
         const slot = cell.dataset.slot;
         const key = `${date}-${slot}`;
         const data = { name, pass };
-        db.collection("reservations").doc(key).set(data);
-        reservations[key] = data;
-        cell.textContent = name;
-        cell.className = 'reserved';
+        setDoc(doc(db, "reservations", key), data);
       });
-
+  
       alert("予約が完了しました。");
-      updateReservationList();
       form.reset();
       selectedCells.clear();
     });
-
+  
     function updateReservationList() {
       reservationList.innerHTML = '';
       for (const key in reservations) {
@@ -238,5 +139,4 @@
       }
     }
   </script>
-</body>
-</html>
+  
