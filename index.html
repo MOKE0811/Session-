@@ -3,90 +3,125 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>予約ページ - Tappy風</title>
+  <title>カレンダー予約システム</title>
   <style>
     body {
+      font-family: sans-serif;
+      background: #f4f4f4;
       margin: 0;
-      font-family: 'Helvetica Neue', sans-serif;
-      background-color: #f5f5f5;
-    }
-    .container {
-      display: flex;
-      flex-direction: column;
-      max-width: 900px;
-      margin: 0 auto;
       padding: 2rem;
     }
-    @media(min-width: 768px) {
-      .container {
-        flex-direction: row;
-        gap: 2rem;
-      }
-    }
-    .profile {
+    table {
+      width: 100%;
+      border-collapse: collapse;
       background: white;
-      padding: 1.5rem;
-      border-radius: 16px;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.05);
-      flex: 1;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    th, td {
+      border: 1px solid #ccc;
+      padding: 1rem;
       text-align: center;
     }
-    .profile img {
-      width: 120px;
-      height: 120px;
-      border-radius: 50%;
-      object-fit: cover;
-      margin-bottom: 1rem;
-    }
-    .schedule {
-      background: white;
-      padding: 1.5rem;
-      border-radius: 16px;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.05);
-      flex: 2;
-    }
-    .schedule h2 {
-      margin-top: 0;
-    }
-    .timeslot {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 1rem;
-      margin-top: 1rem;
-    }
-    .timeslot button {
-      padding: 0.75rem 1.25rem;
+    th {
       background-color: #007bff;
       color: white;
-      border: none;
-      border-radius: 8px;
+    }
+    td.reserved {
+      background-color: #ffcccc;
       cursor: pointer;
     }
-    .timeslot button:hover {
-      background-color: #0056b3;
+    td.available {
+      background-color: #e6ffe6;
+      cursor: pointer;
+    }
+    #formArea {
+      margin-top: 2rem;
+      padding: 1rem;
+      background: white;
+      border-radius: 10px;
+      display: none;
+    }
+    label, input {
+      display: block;
+      margin: 0.5rem 0;
+    }
+    button {
+      padding: 0.5rem 1rem;
+      background: #007bff;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
     }
   </style>
 </head>
 <body>
-  <div class="container">
-    <div class="profile">
-      <img src="https://via.placeholder.com/120" alt="プロフィール写真">
-      <h2>山田 太郎</h2>
-      <p>オンライン面談や個別相談はこちらからご予約ください。</p>
-    </div>
+  <h1>予約カレンダー</h1>
+  <table id="calendar">
+    <thead>
+      <tr>
+        <th>時間帯</th>
+        <th>4月25日</th>
+        <th>4月26日</th>
+        <th>4月27日</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>10:00</td>
+        <td class="available" data-date="4月25日" data-time="10:00"></td>
+        <td class="reserved" data-name="山田">山田</td>
+        <td class="available" data-date="4月27日" data-time="10:00"></td>
+      </tr>
+      <tr>
+        <td>13:00</td>
+        <td class="available" data-date="4月25日" data-time="13:00"></td>
+        <td class="available" data-date="4月26日" data-time="13:00"></td>
+        <td class="reserved" data-name="佐藤">佐藤</td>
+      </tr>
+    </tbody>
+  </table>
 
-    <div class="schedule">
-      <h2>予約可能な時間</h2>
-      <div class="timeslot">
-        <button>4月25日（木） 10:00</button>
-        <button>4月25日（木） 13:00</button>
-        <button>4月26日（金） 11:00</button>
-        <button>4月26日（金） 16:00</button>
-        <button>4月27日（土） 09:30</button>
-        <button>4月27日（土） 14:30</button>
-      </div>
-    </div>
+  <div id="formArea">
+    <h3>予約フォーム</h3>
+    <form id="bookingForm">
+      <input type="hidden" id="selectedSlot">
+      <label>名前：<input type="text" id="userName" required></label>
+      <label>パスワード（予約確認用）：<input type="password" id="userPass" required></label>
+      <button type="submit">予約する</button>
+    </form>
   </div>
+
+  <script>
+    const slots = document.querySelectorAll('.available');
+    const formArea = document.getElementById('formArea');
+    const form = document.getElementById('bookingForm');
+    const selectedSlotInput = document.getElementById('selectedSlot');
+
+    slots.forEach(slot => {
+      slot.addEventListener('click', () => {
+        const date = slot.getAttribute('data-date');
+        const time = slot.getAttribute('data-time');
+        selectedSlotInput.value = `${date} ${time}`;
+        formArea.style.display = 'block';
+      });
+    });
+
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const name = document.getElementById('userName').value;
+      const slot = selectedSlotInput.value;
+      alert(`予約完了：${slot} に ${name} として登録されました`);
+      formArea.style.display = 'none';
+    });
+
+    const reservedSlots = document.querySelectorAll('.reserved');
+    reservedSlots.forEach(slot => {
+      slot.addEventListener('click', () => {
+        const name = slot.getAttribute('data-name');
+        alert(`この時間帯は既に予約されています：予約者名「${name}」`);
+      });
+    });
+  </script>
 </body>
 </html>
-
