@@ -22,7 +22,7 @@
       border: 1px solid #ccc;
       padding: 0.5rem;
       text-align: center;
-      min-width: 80px;
+      min-width: 60px;
     }
     th {
       background-color: #007bff;
@@ -41,7 +41,7 @@
     td.selected {
       background-color: #66cc66 !important;
     }
-    #formArea, #adminArea {
+    #formArea, #adminArea, #loginArea {
       margin-top: 2rem;
       padding: 1rem;
       background: white;
@@ -70,11 +70,19 @@
     li {
       margin: 0.25rem 0;
     }
+    #adminArea { display: none; }
   </style>
 </head>
 <body>
   <h2 class="month-title"></h2>
   <h1>学校用予約カレンダー</h1>
+
+  <div id="loginArea">
+    <h3>管理者ログイン</h3>
+    <label>パスワード：<input type="password" id="adminPass"></label>
+    <button onclick="loginAdmin()">ログイン</button>
+  </div>
+
   <table id="calendar">
     <thead>
       <tr>
@@ -104,25 +112,35 @@
     const reservationList = document.getElementById('reservationList');
     const monthTitle = document.querySelector('.month-title');
 
-    const timeSlots = ['1限', '2限', 'お昼休み', '3限', '4限', '5限', '6限', '夜'];
+    const timeSlots = ['朝', '1限', '2限', 'お昼休み', '3限', '4限', '5限', '6限', '夜'];
     const today = new Date();
     const year = today.getFullYear();
     const month = today.getMonth();
     const daysInMonth = new Date(year, month + 1, 0).getDate();
     monthTitle.textContent = `${year}年${month + 1}月`;
 
-    const reservations = {};
+    let reservations = JSON.parse(localStorage.getItem('reservations') || '{}');
     const selectedCells = new Set();
 
-    // ヘッダー生成
+    const ADMIN_PASSWORD = "admin123"; // 管理用パスワード（変更可）
+
+    function loginAdmin() {
+      const inputPass = document.getElementById("adminPass").value;
+      if (inputPass === ADMIN_PASSWORD) {
+        document.getElementById("adminArea").style.display = 'block';
+        alert("ログイン成功");
+      } else {
+        alert("パスワードが違います");
+      }
+    }
+
     const headerRow = document.querySelector("thead tr");
     for (let d = 1; d <= daysInMonth; d++) {
       const th = document.createElement("th");
-      th.textContent = `${month + 1}月${d}日`;
+      th.textContent = `${d}日`;
       headerRow.appendChild(th);
     }
 
-    // カレンダー本体生成
     timeSlots.forEach(slot => {
       const row = document.createElement('tr');
       const timeCell = document.createElement('td');
@@ -132,13 +150,19 @@
       for (let d = 1; d <= daysInMonth; d++) {
         const dateStr = `${month + 1}月${d}日`;
         const td = document.createElement('td');
-        td.classList.add('available');
+        const key = `${dateStr}-${slot}`;
+
+        if (reservations[key]) {
+          td.className = 'reserved';
+          td.textContent = reservations[key].name;
+        } else {
+          td.className = 'available';
+        }
+
         td.dataset.date = dateStr;
         td.dataset.slot = slot;
 
         td.addEventListener('click', () => {
-          const key = `${dateStr}-${slot}`;
-
           if (td.classList.contains('reserved')) {
             const res = reservations[key];
             if (res && prompt("予約キャンセル確認\nパスワードを入力してください：") === res.pass) {
@@ -146,6 +170,7 @@
               td.textContent = '';
               td.className = 'available';
               updateReservationList();
+              localStorage.setItem('reservations', JSON.stringify(reservations));
               alert('予約をキャンセルしました');
             } else {
               alert(`この時間帯は予約されています：${res.name}`);
@@ -163,7 +188,6 @@
 
         row.appendChild(td);
       }
-
       calendarBody.appendChild(row);
     });
 
@@ -185,6 +209,7 @@
       updateReservationList();
       form.reset();
       selectedCells.clear();
+      localStorage.setItem('reservations', JSON.stringify(reservations));
     });
 
     function updateReservationList() {
@@ -195,6 +220,8 @@
         reservationList.appendChild(li);
       }
     }
+
+    updateReservationList();
   </script>
 </body>
 </html>
