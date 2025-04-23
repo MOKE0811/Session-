@@ -1,20 +1,5 @@
-<script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-app.js";
-    import { getFirestore, doc, getDoc, setDoc, deleteDoc, onSnapshot, collection } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-firestore.js";
-  
-    const firebaseConfig = {
-      apiKey: "AIzaSyD9mh78jkMDpKo1i_fAvQ5TgnUUWny9Fyg",
-      authDomain: "session-booking-5ffce.firebaseapp.com",
-      projectId: "session-booking-5ffce",
-      storageBucket: "session-booking-5ffce.appspot.com",
-      messagingSenderId: "63181042788",
-      appId: "1:63181042788:web:af3c9cd064d7eac11c1b71",
-      measurementId: "G-X44HX92V7L"
-    };
-  
-    const app = initializeApp(firebaseConfig);
-    const db = getFirestore(app);
-  
+<!-- Firebase連携を一時的に除去し、元のローカル保存・表示ができる状態に戻します -->
+<script>
     const calendarBody = document.getElementById('calendarBody');
     const form = document.getElementById('bookingForm');
     const reservationList = document.getElementById('reservationList');
@@ -28,7 +13,7 @@
     monthTitle.textContent = `${year}年${month + 1}月`;
   
     const selectedCells = new Set();
-    const reservations = {};
+    let reservations = JSON.parse(localStorage.getItem('reservations') || '{}');
   
     const ADMIN_PASSWORD = "admin123";
   
@@ -60,6 +45,13 @@
         const td = document.createElement('td');
         const key = `${dateStr}-${slot}`;
   
+        if (reservations[key]) {
+          td.className = 'reserved';
+          td.textContent = reservations[key].name;
+        } else {
+          td.className = 'available';
+        }
+  
         td.dataset.date = dateStr;
         td.dataset.slot = slot;
   
@@ -67,11 +59,11 @@
           if (td.classList.contains('reserved')) {
             const res = reservations[key];
             if (res && prompt("予約キャンセル確認\nパスワードを入力してください：") === res.pass) {
-              deleteDoc(doc(db, "reservations", key));
               delete reservations[key];
               td.textContent = '';
               td.className = 'available';
               updateReservationList();
+              localStorage.setItem('reservations', JSON.stringify(reservations));
               alert('予約をキャンセルしました');
             } else {
               alert(`この時間帯は予約されています：${res.name}`);
@@ -86,30 +78,10 @@
             }
           }
         });
+  
         row.appendChild(td);
       }
       calendarBody.appendChild(row);
-    });
-  
-    onSnapshot(collection(db, "reservations"), (snapshot) => {
-      snapshot.docChanges().forEach(change => {
-        const key = change.doc.id;
-        const data = change.doc.data();
-        reservations[key] = data;
-  
-        const [dateStr, slot] = key.split('-');
-        const td = [...document.querySelectorAll('td')].find(td => td.dataset.date === dateStr && td.dataset.slot === slot);
-        if (td) {
-          if (change.type === "removed") {
-            td.textContent = '';
-            td.className = 'available';
-          } else {
-            td.textContent = data.name;
-            td.className = 'reserved';
-          }
-        }
-        updateReservationList();
-      });
     });
   
     form.addEventListener('submit', (e) => {
@@ -121,13 +93,16 @@
         const date = cell.dataset.date;
         const slot = cell.dataset.slot;
         const key = `${date}-${slot}`;
-        const data = { name, pass };
-        setDoc(doc(db, "reservations", key), data);
+        reservations[key] = { name, pass };
+        cell.textContent = name;
+        cell.className = 'reserved';
       });
   
       alert("予約が完了しました。");
+      updateReservationList();
       form.reset();
       selectedCells.clear();
+      localStorage.setItem('reservations', JSON.stringify(reservations));
     });
   
     function updateReservationList() {
@@ -138,5 +113,8 @@
         reservationList.appendChild(li);
       }
     }
+  
+    updateReservationList();
   </script>
+  
   
