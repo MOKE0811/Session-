@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>カレンダー予約システム</title>
+  <title>予約カレンダー</title>
   <style>
     body {
       font-family: sans-serif;
@@ -16,15 +16,19 @@
       border-collapse: collapse;
       background: white;
       box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      overflow-x: auto;
     }
     th, td {
       border: 1px solid #ccc;
-      padding: 1rem;
+      padding: 0.5rem;
       text-align: center;
+      min-width: 80px;
     }
     th {
       background-color: #007bff;
       color: white;
+      position: sticky;
+      top: 0;
     }
     td.reserved {
       background-color: #ffcccc;
@@ -56,71 +60,106 @@
   </style>
 </head>
 <body>
-  <h1>予約カレンダー</h1>
+  <h1>学校用予約カレンダー</h1>
   <table id="calendar">
     <thead>
       <tr>
         <th>時間帯</th>
-        <th>4月25日</th>
-        <th>4月26日</th>
-        <th>4月27日</th>
       </tr>
     </thead>
-    <tbody>
-      <tr>
-        <td>10:00</td>
-        <td class="available" data-date="4月25日" data-time="10:00"></td>
-        <td class="reserved" data-name="山田">山田</td>
-        <td class="available" data-date="4月27日" data-time="10:00"></td>
-      </tr>
-      <tr>
-        <td>13:00</td>
-        <td class="available" data-date="4月25日" data-time="13:00"></td>
-        <td class="available" data-date="4月26日" data-time="13:00"></td>
-        <td class="reserved" data-name="佐藤">佐藤</td>
-      </tr>
+    <tbody id="calendarBody">
     </tbody>
   </table>
 
   <div id="formArea">
     <h3>予約フォーム</h3>
     <form id="bookingForm">
+      <input type="hidden" id="selectedDate">
       <input type="hidden" id="selectedSlot">
       <label>名前：<input type="text" id="userName" required></label>
-      <label>パスワード（予約確認用）：<input type="password" id="userPass" required></label>
+      <label>パスワード（キャンセル用）：<input type="password" id="userPass" required></label>
       <button type="submit">予約する</button>
     </form>
   </div>
 
   <script>
-    const slots = document.querySelectorAll('.available');
+    const calendar = document.getElementById('calendar');
+    const calendarBody = document.getElementById('calendarBody');
     const formArea = document.getElementById('formArea');
     const form = document.getElementById('bookingForm');
+    const selectedDateInput = document.getElementById('selectedDate');
     const selectedSlotInput = document.getElementById('selectedSlot');
 
-    slots.forEach(slot => {
-      slot.addEventListener('click', () => {
-        const date = slot.getAttribute('data-date');
-        const time = slot.getAttribute('data-time');
-        selectedSlotInput.value = `${date} ${time}`;
-        formArea.style.display = 'block';
-      });
+    const timeSlots = ['1限', '2限', 'お昼休み', '3限', '4限', '5限', '6限', '夜'];
+
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = today.getMonth();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+    const reservations = {};
+
+    // ヘッダー生成
+    const headerRow = calendar.querySelector('thead tr');
+    for (let d = 1; d <= daysInMonth; d++) {
+      const th = document.createElement('th');
+      th.textContent = `${month + 1}月${d}日`;
+      headerRow.appendChild(th);
+    }
+
+    // カレンダー本体生成
+    timeSlots.forEach(slot => {
+      const row = document.createElement('tr');
+      const timeCell = document.createElement('td');
+      timeCell.textContent = slot;
+      row.appendChild(timeCell);
+      for (let d = 1; d <= daysInMonth; d++) {
+        const dateStr = `${month + 1}月${d}日`;
+        const td = document.createElement('td');
+        td.classList.add('available');
+        td.dataset.date = dateStr;
+        td.dataset.slot = slot;
+        td.addEventListener('click', () => {
+          if (td.classList.contains('reserved')) {
+            const key = `${dateStr}-${slot}`;
+            const res = reservations[key];
+            if (res && prompt("予約キャンセル確認\nパスワードを入力してください：") === res.pass) {
+              delete reservations[key];
+              td.textContent = '';
+              td.className = 'available';
+              alert('予約をキャンセルしました');
+            } else {
+              alert(`この時間帯は予約されています：${res.name}`);
+            }
+          } else {
+            selectedDateInput.value = dateStr;
+            selectedSlotInput.value = slot;
+            formArea.style.display = 'block';
+          }
+        });
+        row.appendChild(td);
+      }
+      calendarBody.appendChild(row);
     });
 
     form.addEventListener('submit', (e) => {
       e.preventDefault();
       const name = document.getElementById('userName').value;
+      const pass = document.getElementById('userPass').value;
+      const date = selectedDateInput.value;
       const slot = selectedSlotInput.value;
-      alert(`予約完了：${slot} に ${name} として登録されました`);
-      formArea.style.display = 'none';
-    });
+      const key = `${date}-${slot}`;
+      reservations[key] = { name, pass };
 
-    const reservedSlots = document.querySelectorAll('.reserved');
-    reservedSlots.forEach(slot => {
-      slot.addEventListener('click', () => {
-        const name = slot.getAttribute('data-name');
-        alert(`この時間帯は既に予約されています：予約者名「${name}」`);
-      });
+      const cell = [...document.querySelectorAll('td')].find(td => td.dataset.date === date && td.dataset.slot === slot);
+      if (cell) {
+        cell.textContent = name;
+        cell.className = 'reserved';
+      }
+
+      alert(`${date} ${slot} に予約しました。`);
+      formArea.style.display = 'none';
+      form.reset();
     });
   </script>
 </body>
